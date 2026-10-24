@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestion de stock</title>
+  <script>
+    if (window.self !== window.top) {
+      document.documentElement.classList.add('embedded');
+    }
+  </script>
+   <style>
+  body { font-family: Arial, Helvetica, sans-serif; color:#212529; margin:0; }
+    .container { max-width:1200px; margin:0 auto; padding:0 20px 40px; }
+    h2 { margin:0 0 16px; font-size:26px; font-weight:700; }
+    .mb-3 { margin-bottom:16px; }
+    .mb-4 { margin-bottom:24px; }
+    .mx-auto { margin-left:auto; margin-right:auto; }
+    .w-100 { width:100%; box-sizing:border-box; text-align:center; }
+
+    .btn { display:inline-block; padding:8px 16px; border:1px solid #0d6efd;
+      border-radius:6px; background:#fff; color:#0d6efd; text-decoration:none;
+      font-size:14px; cursor:pointer; line-height:1.4; }
+    .btn:hover { opacity:.88; }
+    .btn-sm { padding:4px 10px; font-size:13px; }
+    .btn-primary { background:#0d6efd; border-color:#0d6efd; color:#fff; }
+    .btn-success { background:#198754; border-color:#198754; color:#fff; }
+    .btn-danger { background:#dc3545; border-color:#dc3545; color:#fff; }
+    .btn-secondary { background:#6c757d; border-color:#6c757d; color:#fff; }
+
+    .table-responsive { overflow-x:auto; }
+    .table { width:100%; border-collapse:collapse; background:#fff; }
+    .table th, .table td { padding:10px 12px; border-bottom:1px solid #dee2e6;
+      text-align:left; vertical-align:middle; }
+    .table th { background:#e9ecef; font-weight:600; }
+    .table-striped tbody tr:nth-child(odd) { background:#f8f9fa; }
+
+    input[type=text], input[type=number], input[type=password],
+    input[type=email], input[type=date], input[type=datetime-local],
+    select, textarea { padding:8px 10px; border:1px solid #ced4da;
+      border-radius:6px; font-size:14px; max-width:100%; box-sizing:border-box; }
+    form p { margin:0 0 14px; }
+    form p label { display:block; font-weight:600; margin-bottom:4px; }
+  </style>
+  <style>
+    body { background:#f4f6f9; }
+    html.embedded nav { display:none !important; }
+    html.embedded body { background:#fff; }
+    html.embedded .container { padding-top:12px; }
+
+    .topbar { display:flex; justify-content:space-between; align-items:center;
+      padding:12px 24px; margin-bottom:24px; position:relative; z-index:50;
+      background:linear-gradient(135deg,#0f172a,#1e3a8a);
+      box-shadow:0 2px 10px rgba(0,0,0,.25); }
+    .marque { display:flex; align-items:center; gap:10px; color:#fff;
+      text-decoration:none; font-size:22px; letter-spacing:.5px; }
+    .marque:hover { color:#fff; }
+    .logo { display:inline-flex; align-items:center; justify-content:center;
+      width:40px; height:40px; border-radius:10px;
+      background:rgba(255,255,255,.15); font-size:22px; }
+    .titre-marque b { color:#60a5fa; font-weight:800; }
+
+    .menu-user { position:relative; }
+    .menu-user summary { list-style:none; cursor:pointer; display:flex;
+      align-items:center; gap:10px; color:#fff; padding:6px 14px;
+      border-radius:30px; background:rgba(255,255,255,.1); }
+    .menu-user summary::-webkit-details-marker { display:none; }
+    .menu-user summary:hover { background:rgba(255,255,255,.2); }
+    .avatar { width:32px; height:32px; border-radius:50%; background:#3b82f6;
+      color:#fff; display:inline-flex; align-items:center;
+      justify-content:center; font-weight:700; }
+    .avatar.petit { width:26px; height:26px; font-size:12px; }
+    .badge-bascule { background:#f59e0b; color:#1f2937; font-size:11px;
+      padding:2px 8px; border-radius:10px; font-weight:600; }
+
+    .liste-menu { position:absolute; right:0; top:calc(100% + 8px);
+      min-width:270px; background:#fff; border-radius:12px; padding:8px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25); max-height:70vh;
+      overflow-y:auto; }
+    .entete-menu { font-size:12px; text-transform:uppercase;
+      letter-spacing:.5px; color:#6b7280; padding:8px 10px; }
+    .ligne-compte, .ligne-lien { display:flex; align-items:center; gap:10px;
+      width:100%; padding:8px 10px; border:none; background:transparent;
+      border-radius:8px; text-align:left; color:#111827;
+      text-decoration:none; font-size:14px; cursor:pointer; }
+    .ligne-compte:hover, .ligne-lien:hover { background:#eff6ff; color:#111827; }
+    .ligne-compte.courant { background:#dbeafe; font-weight:600; }
+    .ligne-compte em { margin-left:auto; font-size:11px; color:#b45309;
+      font-style:normal; }
+    .ligne-compte i { color:#2563eb; font-style:normal; }
+    .ligne-lien.rouge { color:#dc2626; }
+    .liste-menu hr { margin:6px 0; }
+  </style>
+</head>
+<body>
+<nav class="topbar">
+  <a class="marque" href="{% url 'accueil' %}">
+    <span class="logo">📦</span>
+    <span class="titre-marque">Gestion<b>Stock</b></span>
+  </a>
+  {% if user.is_authenticated %}
+  <details class="menu-user">
+    <summary>
+      <span class="avatar">{{ user.username|slice:":1"|upper }}</span>
+      <span>{{ user.username }}</span>
+      {% if en_bascule %}<span class="badge-bascule">mode test</span>{% endif %}
+      <span>▾</span>
+    </summary>
+    <div class="liste-menu">
+      {% if est_maitre %}
+      <div class="entete-menu">Utiliser le site en tant que</div>
+      {% for c in comptes %}
+      <form method="post" action="{% url 'basculer' c.pk %}">
+        {% csrf_token %}
+        <button class="ligne-compte {% if c.pk == user.pk %}courant{% endif %}">
+          <span class="avatar petit">{{ c.username|slice:":1"|upper }}</span>
+          <span>{{ c.username }}</span>
+          {% if c.is_superuser %}<em>maître</em>{% endif %}
+          {% if c.pk == user.pk %}<i>✓</i>{% endif %}
+        </button>
+      </form>
+      {% endfor %}
+      <hr>
+      {% endif %}
+      {% if user.is_staff %}
+      <a class="ligne-lien" href="/admin/">⚙ Administration</a>
+      {% endif %}
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="ligne-lien rouge">⎋ Déconnexion</button>
+      </form>
+    </div>
+  </details>
+  {% endif %}
+</nav>
+<div class="container">
+  {% block contenu %}{% endblock %}
+</div>
+</body>
+</html>

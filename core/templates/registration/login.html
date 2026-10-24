@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}
+{% block contenu %}
+<div class="mx-auto" style="max-width:400px">
+  <h2 class="mb-3">Connexion</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary w-100">Se connecter</button>
+  </form>
+</div>
+{% endblock %}

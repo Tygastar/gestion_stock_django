@@ -1,0 +1,75 @@
+{% extends "core/base.html" %}
+{% block contenu %}
+<style>
+  .onglets { display:flex; gap:4px; overflow-x:auto; border-bottom:2px solid #dee2e6; }
+  .onglet { padding:10px 18px; border:none; background:transparent; color:#495057;
+            font-weight:500; cursor:pointer; white-space:nowrap;
+            border-bottom:3px solid transparent; margin-bottom:-2px;
+            border-radius:8px 8px 0 0; font-size:15px; }
+  .onglet:hover { background:#e9ecef; }
+  .onglet.actif { color:#0d6efd; border-bottom-color:#0d6efd; background:#fff; }
+  .panneau { background:#fff; border:1px solid #dee2e6; border-top:none;
+             border-radius:0 0 10px 10px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .panneau iframe { width:100%; border:0; min-height:420px; display:block; }
+</style>
+
+<h2 class="mb-3">Tableau de bord</h2>
+
+{% if alertes %}
+<div style="border:1px solid #dc3545; background:#fdecea; border-radius:6px; padding:12px 16px; margin-bottom:20px;">
+  <strong style="color:#dc3545;">⚠ Stock bas : {{ alertes|length }} produit(s) à réapprovisionner</strong>
+  <table class="table" style="margin-top:8px;">
+    <thead><tr><th>Produit</th><th>Quantité</th><th>Seuil</th></tr></thead>
+    <tbody>
+    {% for p in alertes %}
+      <tr><td>{{ p.NomProduit }}</td><td>{{ p.total }}</td><td>{{ p.Seuil }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if tables %}
+<div class="onglets">
+  {% for titre, url in tables %}
+  <button type="button" class="onglet" data-url="{{ url }}">{{ titre }}</button>
+  {% endfor %}
+</div>
+<div class="panneau">
+  <iframe id="cadre" title="Contenu de la table"></iframe>
+</div>
+
+<script>
+(function () {
+  var onglets = document.querySelectorAll('.onglet');
+  var cadre = document.getElementById('cadre');
+
+  function ajuster() {
+    try {
+      var h = cadre.contentWindow.document.documentElement.scrollHeight;
+      cadre.style.height = Math.max(h, 420) + 'px';
+    } catch (e) {}
+  }
+
+  function ouvrir(bouton) {
+    onglets.forEach(function (b) { b.classList.remove('actif'); });
+    bouton.classList.add('actif');
+    cadre.src = bouton.dataset.url;
+    history.replaceState(null, '', '#' + bouton.dataset.url);
+  }
+
+  var cible = decodeURIComponent(location.hash.slice(1));
+  var depart = null;
+  onglets.forEach(function (b) {
+    b.addEventListener('click', function () { ouvrir(b); });
+    if (b.dataset.url === cible) { depart = b; }
+  });
+  if (!depart) { depart = onglets[0]; }
+  ouvrir(depart);
+  cadre.addEventListener('load', ajuster);
+})();
+</script>
+{% else %}
+<p>Aucune table n'est accessible avec votre compte.</p>
+{% endif %}
+{% endblock %}

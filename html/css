@@ -1,0 +1,174 @@
+    • !DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestion de stock</title>
+    • <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef1f4;--panel:#fff;--ink:#16212e;--muted:#5c6b7a;--line:#d5dce3;--accent:#1f4e79;--on:#fff;--warn:#f2b600;--warnbg:#fff4cc;--danger:#c0392b;--ok:#2e7d4f;
+--font:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10161d;--panel:#192330;--ink:#e8edf2;--muted:#93a1b0;--line:#2a3847;--accent:#5fa3dd;--on:#0b1520;--warnbg:#3a3010;--danger:#ef7a6c;--ok:#6cc58f}}
+:root[data-theme="dark"]{--bg:#10161d;--panel:#192330;--ink:#e8edf2;--muted:#93a1b0;--line:#2a3847;--accent:#5fa3dd;--on:#0b1520;--warnbg:#3a3010;--danger:#ef7a6c;--ok:#6cc58f}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:16px 14px 48px}
+header{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+h1{font-size:clamp(1.7rem,6vw,2.5rem);font-weight:800;letter-spacing:-.02em;margin:0}
+h2{font-size:1.1rem;margin:20px 0 8px}
+nav{display:flex;gap:6px;overflow-x:auto;margin:14px 0;padding-bottom:4px}
+nav button{white-space:nowrap}
+nav button[aria-current="true"]{background:var(--accent);color:var(--on);border-color:var(--accent);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat b{display:block;font-size:1.5rem;font-weight:800;line-height:1.1}
+.stat span{color:var(--muted);font-size:.85rem}
+.stat.alert{border-color:var(--warn);background:var(--warnbg)}
+form,.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end;margin-bottom:14px}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:4px}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px}
+button.primary{background:var(--accent);color:var(--on);border-color:var(--accent);font-weight:600}
+.tw{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.92rem;vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:.8rem}
+tr:last-child td{border-bottom:0}
+tr.low td:first-child{box-shadow:inset 6px 0 var(--warn)}
+tr.out td:first-child{box-shadow:inset 6px 0 var(--danger)}
+td.n{font-weight:800;font-size:1.1rem}
+.tag{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:99px;background:var(--warn);color:#2b2200}
+.tag.out{background:var(--danger);color:#fff}.tag.ok{background:var(--ok);color:#fff}
+.mv{display:flex;gap:6px;align-items:center}.mv input{width:70px}
+.in{color:var(--ok);font-weight:600}.sortie{color:var(--danger);font-weight:600}
+#msg{min-height:1.4em;color:var(--danger);font-size:.9rem;margin:4px 0}
+.empty{text-align:center;color:var(--muted);padding:28px}
+@media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:no-preference){button{transition:transform .08s}button:active{transform:scale(.96)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Gestion de stock</h1>
+  <label>Utilisateur connecté<select id="me"></select></label>
+</header>
+<nav id="nav"></nav>
+<div id="msg" role="status"></div>
+<main id="view"></main>
+</div>
+<script>
+const KEY="stock-v3";
+const ID={utilisateur:"idUtilisateur",fournisseur:"idFournisseur",bon_commande:"idCommande",produit:"idProduit",categorie:"idCategorie",stock:"idStock",mouvementstock:"idMouvementStock"};
+const NUM=["Prix_Unitaire","Seuil","idCategorie"];
+const seed=()=>({me:1,seq:100,
+ utilisateur:[{idUtilisateur:1,Nom_Utilisateur:"Camille Durand",Poste:"Magasinier","Log-In":"cdurand"},{idUtilisateur:2,Nom_Utilisateur:"Karim Benali",Poste:"Responsable","Log-In":"kbenali"}],
+ fournisseur:[{idFournisseur:1,NomFournisseur:"Emballages Martin",AdresseFournisseur:"12 rue des Lilas, Lille",Tel_Fournisseur:"01 23 45 67 89",Email_Fournisseur:"contact@emb-martin.fr"},{idFournisseur:2,NomFournisseur:"Papeterie du Nord",AdresseFournisseur:"4 avenue Foch, Roubaix",Tel_Fournisseur:"03 20 00 11 22",Email_Fournisseur:"vente@papnord.fr"}],
+ categorie:[{idCategorie:1,NomCategorie:"Emballage",Description:"Cartons, rubans, protections"},{idCategorie:2,NomCategorie:"Papeterie",Description:"Étiquettes et papier"}],
+ produit:[{idProduit:1,NomProduit:"Cartons 40×30",Description_produit:"Carton double cannelure",Prix_Unitaire:0.8,Seuil:30,idCategorie:1},{idProduit:2,NomProduit:"Ruban adhésif",Description_produit:"Rouleau 66 m",Prix_Unitaire:2.5,Seuil:10,idCategorie:1},{idProduit:3,NomProduit:"Étiquettes d'expédition",Description_produit:"Planche de 100",Prix_Unitaire:0.05,Seuil:20,idCategorie:2}],
+ stock:[{idStock:1,idProduit:1,Qte_Produit_Dispo:120,Emplacement:"A1"},{idStock:2,idProduit:2,Qte_Produit_Dispo:4,Emplacement:"A2"},{idStock:3,idProduit:3,Qte_Produit_Dispo:0,Emplacement:"B1"}],
+ mouvementstock:[],bon_commande:[],ligne_commande:[]});
+let db;try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!db)db=seed();
+let tab="stock",draft={f:null,l:[]};
+const $=s=>document.querySelector(s);
+const E=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const eur=n=>n.toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
+const get=(t,id)=>db[t].find(x=>x[ID[t]]===id)||{};
+const opts=(t,k,sel)=>db[t].map(x=>`<option value="${x[ID[t]]}" ${x[ID[t]]===sel?"selected":""}>${E(x[k])}</option>`).join("");
+const fmt=d=>new Date(d).toLocaleDateString("fr-FR");
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
+const say=t=>$("#msg").textContent=t||"";
+const table=(h,rows)=>rows.length?`<div class="tw"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`:`<div class="tw empty">Rien à afficher pour le moment.</div>`;
+const stk=pid=>db.stock.find(s=>s.idProduit===pid);
+
+function mouv(pid,type,q){
+  const s=stk(pid);
+  if(type==="Sortie"&&q>s.Qte_Produit_Dispo){say(`Sortie impossible : seulement ${s.Qte_Produit_Dispo} en stock.`);return false}
+  s.Qte_Produit_Dispo+=type==="Entrée"?q:-q;
+  db.mouvementstock.push({idMouvementStock:++db.seq,Type_mouvement:type,idProduit:pid,Qte_Produit_Movt:q,Date_Movt:new Date().toISOString(),idUtilisateur:db.me});
+  return true;
+}
+
+const V={
+stock(){
+  const rowsD=db.stock.map(s=>({s,p:get("produit",s.idProduit)}));
+  const low=rowsD.filter(({s,p})=>s.Qte_Produit_Dispo<=p.Seuil).length;
+  const val=rowsD.reduce((a,{s,p})=>a+s.Qte_Produit_Dispo*p.Prix_Unitaire,0);
+  const rows=rowsD.map(({s,p})=>{const q=s.Qte_Produit_Dispo,o=q===0,l=q<=p.Seuil,id=s.idProduit;
+    return `<tr class="${o?"out":l?"low":""}"><td><b>${E(p.NomProduit)}</b><br><small>${E(get("categorie",p.idCategorie).NomCategorie||"Sans catégorie")}</small></td><td>${E(s.Emplacement)}</td><td class="n">${q}</td><td>${p.Seuil}</td>
+    <td>${o?'<span class="tag out">Rupture</span>':l?'<span class="tag">Stock bas</span>':'<span class="tag ok">OK</span>'}</td>
+    <td><div class="mv"><input type="number" min="1" value="1" id="q${id}" aria-label="Quantité"><button data-a="mv" data-t="Entrée" data-id="${id}">Entrée</button><button data-a="mv" data-t="Sortie" data-id="${id}">Sortie</button></div></td></tr>`});
+  return `<div class="stats"><div class="stat"><b>${db.produit.length}</b><span>Produits</span></div><div class="stat"><b>${db.stock.reduce((a,s)=>a+s.Qte_Produit_Dispo,0)}</b><span>Unités en stock</span></div><div class="stat"><b>${eur(val)}</b><span>Valeur du stock</span></div><div class="stat ${low?"alert":""}"><b>${low}</b><span>À réapprovisionner</span></div></div>`+table(["Produit","Emplacement","Quantité","Seuil","État","Mouvement"],rows);
+},
+produits(){
+  return `<form data-f="produit"><label>Nom du produit<input name="NomProduit" required></label><label>Description<input name="Description_produit"></label><label>Prix unitaire (€)<input name="Prix_Unitaire" type="number" min="0" step="0.01" required></label><label>Seuil<input name="Seuil" type="number" min="0" value="5" required></label><label>Catégorie<select name="idCategorie" required>${opts("categorie","NomCategorie")}</select></label><label>Emplacement<input name="Emplacement" required placeholder="A1"></label><button class="primary">Ajouter le produit</button></form>`+
+  table(["Produit","Description","Catégorie","Prix unitaire","Seuil"],db.produit.map(p=>`<tr><td><b>${E(p.NomProduit)}</b></td><td>${E(p.Description_produit)}</td><td>${E(get("categorie",p.idCategorie).NomCategorie||"—")}</td><td>${eur(p.Prix_Unitaire)}</td><td>${p.Seuil}</td></tr>`));
+},
+categories(){
+  return `<form data-f="categorie"><label>Nom de la catégorie<input name="NomCategorie" required></label><label>Description<input name="Description"></label><button class="primary">Ajouter la catégorie</button></form>`+
+  table(["Catégorie","Description","Produits"],db.categorie.map(c=>`<tr><td><b>${E(c.NomCategorie)}</b></td><td>${E(c.Description)}</td><td>${db.produit.filter(p=>p.idCategorie===c.idCategorie).length}</td></tr>`));
+},
+fournisseurs(){
+  return `<form data-f="fournisseur"><label>Nom<input name="NomFournisseur" required></label><label>Adresse<input name="AdresseFournisseur"></label><label>Téléphone<input name="Tel_Fournisseur"></label><label>E-mail<input name="Email_Fournisseur" type="email"></label><button class="primary">Ajouter le fournisseur</button></form>`+
+  table(["Nom","Adresse","Téléphone","E-mail"],db.fournisseur.map(f=>`<tr><td><b>${E(f.NomFournisseur)}</b></td><td>${E(f.AdresseFournisseur)}</td><td>${E(f.Tel_Fournisseur)}</td><td>${E(f.Email_Fournisseur)}</td></tr>`));
+},
+utilisateurs(){
+  return `<form data-f="utilisateur"><label>Nom<input name="Nom_Utilisateur" required></label><label>Poste<input name="Poste"></label><label>Log-In<input name="Log-In" required></label><button class="primary">Ajouter l'utilisateur</button></form>`+
+  table(["Nom","Poste","Log-In"],db.utilisateur.map(u=>`<tr><td><b>${E(u.Nom_Utilisateur)}</b></td><td>${E(u.Poste)}</td><td>${E(u["Log-In"])}</td></tr>`));
+},
+mouvements(){
+  return table(["Date","Produit","Type","Quantité","Utilisateur"],[...db.mouvementstock].reverse().map(m=>`<tr><td>${fmt(m.Date_Movt)}</td><td>${E(get("produit",m.idProduit).NomProduit)}</td><td class="${m.Type_mouvement==="Entrée"?"in":"sortie"}">${m.Type_mouvement}</td><td>${m.Qte_Produit_Movt}</td><td>${E(get("utilisateur",m.idUtilisateur).Nom_Utilisateur||"—")}</td></tr>`));
+},
+commandes(){
+  const tot=draft.l.reduce((a,l)=>a+l.qty*l.prix,0);
+  const form=`<div class="card"><h2 style="margin-top:0">Nouveau bon de commande</h2>
+  <form style="border:0;padding:0;margin:0 0 8px"><label>Fournisseur<select id="dfid"><option value="">Choisir…</option>${opts("fournisseur","NomFournisseur",draft.f)}</select></label>
+  <label>Produit<select id="dp">${opts("produit","NomProduit")}</select></label>
+  <label>Quantité<input id="dq" type="number" min="1" value="10"></label>
+  <label>Prix d'achat (€)<input id="dpx" type="number" min="0" step="0.01" placeholder="Prix unitaire"></label>
+  <button type="button" data-a="addl">Ajouter la ligne</button></form>
+  ${draft.l.length?table(["Produit","Quantité","Prix d'achat","Total"],draft.l.map(l=>`<tr><td>${E(get("produit",l.pid).NomProduit)}</td><td>${l.qty}</td><td>${eur(l.prix)}</td><td>${eur(l.qty*l.prix)}</td></tr>`))+`<p><b>Total : ${eur(tot)}</b> <button class="primary" data-a="mkbon">Créer le bon</button></p>`:`<p class="empty">Choisissez un fournisseur puis ajoutez des lignes.</p>`}</div>`;
+  const list=table(["N°","Date","Fournisseur","Lignes","Total","Réception",""],[...db.bon_commande].reverse().map(b=>{
+    const ls=db.ligne_commande.filter(l=>l.idCommande===b.idCommande),t=ls.reduce((a,l)=>a+l.Quantite_Produit*l.Prix_Achat,0);
+    return `<tr><td>BC-${b.idCommande}</td><td>${fmt(b.Date_Commande)}</td><td>${E(get("fournisseur",b.idFournisseur).NomFournisseur)}<br><small>par ${E(get("utilisateur",b.idUtilisateur).Nom_Utilisateur)}</small></td><td>${ls.map(l=>`${l.Quantite_Produit} × ${E(get("produit",l.idProduit).NomProduit)}`).join("<br>")}</td><td>${eur(t)}</td><td><span class="tag ${b.recu?"ok":""}">${b.recu?"Reçu":"En attente"}</span></td><td>${b.recu?"":`<button data-a="recv" data-id="${b.idCommande}">Réceptionner</button>`}</td></tr>`}));
+  return form+`<h2>Bons de commande</h2>`+list;
+}};
+const TABS=[["stock","Stock"],["produits","Produits"],["categories","Catégories"],["commandes","Commandes"],["mouvements","Mouvements"],["fournisseurs","Fournisseurs"],["utilisateurs","Utilisateurs"]];
+function render(){
+  $("#nav").innerHTML=TABS.map(([k,l])=>`<button data-a="tab" data-id="${k}" ${k===tab?'aria-current="true"':""}>${l}</button>`).join("");
+  $("#me").innerHTML=opts("utilisateur","Nom_Utilisateur",db.me);
+  $("#view").innerHTML=V[tab]();
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-a]");if(!b)return;const a=b.dataset.a,id=b.dataset.id;say();
+  if(a==="tab"){tab=id}
+  else if(a==="mv"){const q=parseInt($("#q"+id).value,10);if(!(q>0))return say("Saisissez une quantité positive.");if(!mouv(+id,b.dataset.t,q))return}
+  else if(a==="addl"){draft.f=+$("#dfid").value||null;const pid=+$("#dp").value,qty=parseInt($("#dq").value,10),px=parseFloat($("#dpx").value);
+    if(!draft.f||!pid||!(qty>0))return say("Choisissez un fournisseur, un produit et une quantité.");
+    const prix=px>=0?px:get("produit",pid).Prix_Unitaire,x=draft.l.find(l=>l.pid===pid);
+    x?(x.qty+=qty,x.prix=prix):draft.l.push({pid,qty,prix})}
+  else if(a==="mkbon"){const n=++db.seq;db.bon_commande.push({idCommande:n,Date_Commande:new Date().toISOString(),idFournisseur:draft.f,idUtilisateur:db.me,recu:false});draft.l.forEach(l=>db.ligne_commande.push({idProduit:l.pid,idCommande:n,Quantite_Produit:l.qty,Prix_Achat:l.prix}));draft={f:null,l:[]}}
+  else if(a==="recv"){const n=+id;db.ligne_commande.filter(l=>l.idCommande===n).forEach(l=>mouv(l.idProduit,"Entrée",l.Quantite_Produit));get("bon_commande",n).recu=true}
+  save();render();
+});
+document.addEventListener("change",e=>{
+  if(e.target.id==="me"){db.me=+e.target.value;save()}
+  if(e.target.id==="dfid"){draft.f=+e.target.value||null}
+});
+document.addEventListener("submit",e=>{
+  const t=e.target.dataset.f;if(!t)return;e.preventDefault();
+  const d=Object.fromEntries(new FormData(e.target));NUM.forEach(k=>{if(k in d)d[k]=+d[k]});
+  const id=++db.seq,emp=d.Emplacement;delete d.Emplacement;
+  db[t].push({[ID[t]]:id,...d});
+  if(t==="produit")db.stock.push({idStock:++db.seq,idProduit:id,Qte_Produit_Dispo:0,Emplacement:emp});
+  save();render();
+});
+render();
+</script>
+</body>
+</html>
